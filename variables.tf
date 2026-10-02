@@ -26,8 +26,18 @@ variable "ami" {
   default     = null
 }
 
+variable "os" {
+  description = "(optional) Shorthand OS selector — sets ami_ssm_parameter automatically. Takes precedence over ami_ssm_parameter. Valid values: al2023, al2, ubuntu22, ubuntu24, windows2022, windows2019"
+  type        = string
+  default     = null
+  validation {
+    condition     = var.os == null || contains(["al2023", "al2", "ubuntu22", "ubuntu24", "windows2022", "windows2019"], var.os)
+    error_message = "os must be one of: al2023, al2, ubuntu22, ubuntu24, windows2022, windows2019."
+  }
+}
+
 variable "ami_ssm_parameter" {
-  description = "SSM parameter name for the AMI ID. For Amazon Linux AMI SSM parameters see [reference](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters-ami.html)"
+  description = "SSM parameter name for the AMI ID. Use the `os` variable for common OS presets. For Amazon Linux AMI SSM parameters see [reference](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters-ami.html)"
   type        = string
   default     = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
@@ -420,9 +430,9 @@ variable "spot_valid_until" {
 # EBS Volume(s)
 ################################################################################
 variable "create_kms_key" {
-  description = "Whether to create kms key"
+  description = "Whether to create a KMS key for EBS volume encryption. When false, volumes use the default AWS-managed key. Default: false"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "ebs_volumes" {
@@ -568,7 +578,7 @@ variable "security_group_egress_rules" {
 }
 
 variable "security_group_ingress_rules" {
-  description = "Egress rules to add to the security group"
+  description = "Ingress rules to add to the security group"
   type = map(object({
     cidr_ipv4                    = optional(string)
     cidr_ipv6                    = optional(string)
@@ -594,7 +604,7 @@ variable "create_eip" {
 }
 
 variable "eip_domain" {
-  description = "Indicates if this EIP is for use in VPC"
+  description = "EIP domain. Always 'vpc' for modern AWS accounts"
   type        = string
   default     = "vpc"
 }

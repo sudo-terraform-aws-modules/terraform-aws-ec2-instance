@@ -11,6 +11,17 @@ locals {
 
   is_t_instance_type = replace(var.instance_type, "/^t(2|3|3a|4g){1}\\..*$/", "1") == "1" ? true : false
 
+  os_ssm_parameters = {
+    al2023      = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+    al2         = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+    ubuntu22    = "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id"
+    ubuntu24    = "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp2/ami-id"
+    windows2022 = "/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base"
+    windows2019 = "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+  }
+
+  resolved_ami_ssm_parameter = var.os != null ? local.os_ssm_parameters[var.os] : var.ami_ssm_parameter
+
   ami = try(coalesce(var.ami, try(nonsensitive(data.aws_ssm_parameter.this[0].value), null)), null)
 
   instance_tags = merge(
@@ -39,7 +50,7 @@ data "aws_ssm_parameter" "this" {
 
   region = var.region
 
-  name = var.ami_ssm_parameter
+  name = local.resolved_ami_ssm_parameter
 }
 
 ################################################################################
@@ -82,8 +93,11 @@ resource "aws_instance" "this" {
     }
   }
 
-  credit_specification {
-    cpu_credits = local.is_t_instance_type ? var.cpu_credits : null
+  dynamic "credit_specification" {
+    for_each = local.is_t_instance_type && var.cpu_credits != null ? [var.cpu_credits] : []
+    content {
+      cpu_credits = credit_specification.value
+    }
   }
 
   disable_api_stop        = var.disable_api_stop
@@ -93,8 +107,11 @@ resource "aws_instance" "this" {
 
   ebs_optimized = var.ebs_optimized
 
-  enclave_options {
-    enabled = var.enclave_options_enabled
+  dynamic "enclave_options" {
+    for_each = var.enclave_options_enabled != null ? [var.enclave_options_enabled] : []
+    content {
+      enabled = enclave_options.value
+    }
   }
 
   enable_primary_ipv6 = var.enable_primary_ipv6
@@ -272,8 +289,11 @@ resource "aws_instance" "ignore_ami" {
     }
   }
 
-  credit_specification {
-    cpu_credits = local.is_t_instance_type ? var.cpu_credits : null
+  dynamic "credit_specification" {
+    for_each = local.is_t_instance_type && var.cpu_credits != null ? [var.cpu_credits] : []
+    content {
+      cpu_credits = credit_specification.value
+    }
   }
 
   disable_api_stop        = var.disable_api_stop
@@ -283,8 +303,11 @@ resource "aws_instance" "ignore_ami" {
 
   ebs_optimized = var.ebs_optimized
 
-  enclave_options {
-    enabled = var.enclave_options_enabled
+  dynamic "enclave_options" {
+    for_each = var.enclave_options_enabled != null ? [var.enclave_options_enabled] : []
+    content {
+      enabled = enclave_options.value
+    }
   }
 
   enable_primary_ipv6 = var.enable_primary_ipv6
@@ -394,9 +417,9 @@ resource "aws_instance" "ignore_ami" {
 
     content {
       delete_on_termination = root_block_device.value.delete_on_termination
-      encrypted             = root_block_device.value.encrypted
+      encrypted             = try(root_block_device.value.encrypted, true)
       iops                  = root_block_device.value.iops
-      kms_key_id            = root_block_device.value.kms_key_id
+      kms_key_id            = try(root_block_device.value.kms_key_id, module.kms_key.key_arn)
       tags                  = root_block_device.value.tags
       throughput            = root_block_device.value.throughput
       volume_size           = root_block_device.value.size
@@ -478,8 +501,11 @@ resource "aws_spot_instance_request" "this" {
     }
   }
 
-  credit_specification {
-    cpu_credits = local.is_t_instance_type ? var.cpu_credits : null
+  dynamic "credit_specification" {
+    for_each = local.is_t_instance_type && var.cpu_credits != null ? [var.cpu_credits] : []
+    content {
+      cpu_credits = credit_specification.value
+    }
   }
 
   disable_api_stop        = var.disable_api_stop
@@ -489,8 +515,11 @@ resource "aws_spot_instance_request" "this" {
 
   ebs_optimized = var.ebs_optimized
 
-  enclave_options {
-    enabled = var.enclave_options_enabled
+  dynamic "enclave_options" {
+    for_each = var.enclave_options_enabled != null ? [var.enclave_options_enabled] : []
+    content {
+      enabled = enclave_options.value
+    }
   }
 
   enable_primary_ipv6 = var.enable_primary_ipv6
@@ -581,9 +610,9 @@ resource "aws_spot_instance_request" "this" {
 
     content {
       delete_on_termination = root_block_device.value.delete_on_termination
-      encrypted             = root_block_device.value.encrypted
+      encrypted             = try(root_block_device.value.encrypted, true)
       iops                  = root_block_device.value.iops
-      kms_key_id            = root_block_device.value.kms_key_id
+      kms_key_id            = try(root_block_device.value.kms_key_id, module.kms_key.key_arn)
       tags                  = root_block_device.value.tags
       throughput            = root_block_device.value.throughput
       volume_size           = root_block_device.value.size
